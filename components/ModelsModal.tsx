@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Type, Image as ImageIcon, Video, Mic, Database, Layers } from 'lucide-react';
 import { Category, Tool } from '../types';
 import ToolCard from './ToolCard';
@@ -14,8 +15,22 @@ type ModelType = 'All' | 'Text' | 'Image' | 'Video' | 'Audio' | 'Embedding';
 
 const ModelsModal: React.FC<ModelsModalProps> = ({ category, isOpen, onClose, accentColor }) => {
   const [activeTab, setActiveTab] = useState<ModelType>('All');
+  const [mounted, setMounted] = useState(false);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    setMounted(true);
+    // Prevent scrolling on body when modal is open
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  if (!isOpen || !mounted) return null;
 
   const tabs: { id: ModelType; label: string; icon: React.ElementType }[] = [
     { id: 'All', label: 'All Models', icon: Layers },
@@ -30,26 +45,26 @@ const ModelsModal: React.FC<ModelsModalProps> = ({ category, isOpen, onClose, ac
     ? category.tools 
     : category.tools.filter(t => t.modelType === activeTab || (activeTab === 'Text' && t.modelType === 'Multimodal'));
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+  const modalContent = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 font-sans">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
+        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
         onClick={onClose}
       />
 
       {/* Modal Content */}
-      <div className="relative w-full max-w-6xl h-[85vh] bg-slate-50 rounded-xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-7xl h-[90vh] bg-slate-50 rounded-xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200">
+        <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200 flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded bg-${accentColor}/10 text-${accentColor}`}>
-              <category.icon size={20} />
+            <div className={`p-2.5 rounded-lg bg-${accentColor}/10 text-${accentColor}`}>
+              <category.icon size={22} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-800">Global Model Leaderboard</h2>
-              <p className="text-xs text-slate-500 font-medium">Top 100+ Trending Models across all modalities</p>
+              <h2 className="text-xl font-bold text-slate-800 tracking-tight">Global Model Leaderboard</h2>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">Top 100+ Trending Models across all modalities</p>
             </div>
           </div>
           <button 
@@ -61,8 +76,8 @@ const ModelsModal: React.FC<ModelsModalProps> = ({ category, isOpen, onClose, ac
         </div>
 
         {/* Tabs */}
-        <div className="px-6 pt-4 bg-white/50 border-b border-slate-200 overflow-x-auto">
-          <div className="flex gap-6 min-w-max">
+        <div className="px-6 pt-2 bg-white/50 border-b border-slate-200 overflow-x-auto flex-shrink-0">
+          <div className="flex gap-8 min-w-max">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -71,7 +86,7 @@ const ModelsModal: React.FC<ModelsModalProps> = ({ category, isOpen, onClose, ac
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`
-                    flex items-center gap-2 pb-3 text-sm font-semibold border-b-2 transition-colors
+                    flex items-center gap-2 pb-3 pt-2 text-sm font-semibold border-b-2 transition-all
                     ${isActive 
                       ? `border-${accentColor} text-${accentColor}` 
                       : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}
@@ -96,7 +111,7 @@ const ModelsModal: React.FC<ModelsModalProps> = ({ category, isOpen, onClose, ac
 
         {/* Grid Content */}
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
             {filteredTools.map((tool) => (
               <ToolCard 
                 key={tool.id} 
@@ -107,7 +122,7 @@ const ModelsModal: React.FC<ModelsModalProps> = ({ category, isOpen, onClose, ac
           </div>
           
           {filteredTools.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center text-slate-400">
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 min-h-[300px]">
               <Database size={48} className="mb-4 opacity-20" />
               <p>No models found for this category.</p>
             </div>
@@ -115,13 +130,15 @@ const ModelsModal: React.FC<ModelsModalProps> = ({ category, isOpen, onClose, ac
         </div>
         
         {/* Footer */}
-        <div className="px-6 py-3 bg-white border-t border-slate-200 text-xs text-slate-400 flex justify-between">
+        <div className="px-6 py-3 bg-white border-t border-slate-200 text-xs text-slate-400 flex justify-between flex-shrink-0">
            <span>Data sourced from Hugging Face Open LLM Leaderboard, LMSYS Chatbot Arena, and community trends.</span>
            <span>Updated: March 2025</span>
         </div>
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default ModelsModal;
